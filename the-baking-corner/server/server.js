@@ -28,6 +28,9 @@ const uploadRoutes = require(
 const aiRoutes = require(
   './routes/aiRoutes'
 );
+const contactRoutes = require(
+  './routes/contactRoutes'
+);
 const app = express();
 
 /*
@@ -95,6 +98,10 @@ app.use(
 app.use(
   '/api/uploads',
   uploadRoutes
+);
+app.use(
+  '/api/contact',
+  contactRoutes
 );
 app.use(
   '/api/ai',

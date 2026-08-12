@@ -6,8 +6,6 @@ import {
 export default function FloatingAssistantButton() {
   const location = useLocation();
 
-  // אין צורך להציג את הכפתור
-  // כשכבר נמצאים בעמוד העוזר.
   if (
     location.pathname ===
     '/ai-assistant'
@@ -18,38 +16,21 @@ export default function FloatingAssistantButton() {
   return (
     <Link
       to="/ai-assistant"
+      className="assistant-widget"
       aria-label="Open Baking Assistant"
       title="Baking Assistant"
-      style={{
-        position: 'fixed',
-        right: '24px',
-        bottom: '24px',
-        width: '58px',
-        height: '58px',
-        borderRadius: '50%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#111',
-        color: '#d4af37',
-        border: '2px solid #d4af37',
-        boxShadow:
-          '0 5px 18px rgba(0, 0, 0, 0.25)',
-        textDecoration: 'none',
-        zIndex: 1000
-      }}
     >
       <svg
-        width="30"
-        height="30"
+        width="27"
+        height="27"
         viewBox="0 0 24 24"
         fill="none"
         aria-hidden="true"
       >
         <path
-          d="M5 5.5H19V15.5H10L5 19V5.5Z"
+          d="M7 4H17C18.1 4 19 4.9 19 6V15C19 16.1 18.1 17 17 17H11L7 20V17C5.9 17 5 16.1 5 15V6C5 4.9 5.9 4 7 4Z"
           stroke="currentColor"
-          strokeWidth="1.7"
+          strokeWidth="1.8"
           strokeLinejoin="round"
         />
 
