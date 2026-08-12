@@ -31,6 +31,9 @@ const aiRoutes = require(
 const contactRoutes = require(
   './routes/contactRoutes'
 );
+const couponRoutes = require(
+  './routes/couponRoutes'
+);
 const app = express();
 
 /*
@@ -106,6 +109,10 @@ app.use(
 app.use(
   '/api/ai',
   aiRoutes
+);
+app.use(
+  '/api/coupons',
+  couponRoutes
 );
 
 app.use('/api', orderRoutes);

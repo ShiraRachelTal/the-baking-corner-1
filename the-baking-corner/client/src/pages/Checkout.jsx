@@ -26,6 +26,15 @@ export default function Checkout({
     cvv: ''
   });
 
+  const [couponCode, setCouponCode] =
+    useState('');
+
+  const [appliedCoupon, setAppliedCoupon] =
+    useState(null);
+
+  const [isApplyingCoupon, setIsApplyingCoupon] =
+    useState(false);
+
   const [isSubmitting, setIsSubmitting] =
     useState(false);
 
@@ -37,6 +46,15 @@ export default function Checkout({
     0
   );
 
+  const discountAmount = appliedCoupon
+    ? Number(appliedCoupon.discountAmount)
+    : 0;
+
+  const finalTotal = Math.max(
+    0,
+    totalPrice - discountAmount
+  );
+
   const handleChange = (event) => {
     const { name, value } = event.target;
 
@@ -44,6 +62,132 @@ export default function Checkout({
       ...previousData,
       [name]: value
     }));
+  };
+
+  const handleCouponCodeChange = (event) => {
+    setCouponCode(event.target.value);
+    setAppliedCoupon(null);
+  };
+
+  const handleApplyCoupon = async () => {
+    const token = localStorage.getItem(
+      'baking_corner_token'
+    );
+
+    const normalizedCode =
+      couponCode.trim().toUpperCase();
+
+    if (!normalizedCode) {
+      toast.error('Please enter a coupon code', {
+        id: 'coupon-code-required'
+      });
+      return;
+    }
+
+    if (!token) {
+      toast.error(
+        'Please log in before applying a coupon',
+        {
+          id: 'coupon-login-required'
+        }
+      );
+
+      navigate('/login');
+      return;
+    }
+
+    setIsApplyingCoupon(true);
+
+    try {
+      const response = await fetch(
+        'http://localhost:5000/api/coupons/validate',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type':
+              'application/json',
+            Authorization:
+              `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            code: normalizedCode,
+            totalAmount: totalPrice
+          })
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          localStorage.removeItem(
+            'baking_corner_token'
+          );
+
+          localStorage.removeItem(
+            'baking_corner_user'
+          );
+
+          toast.error(
+            'Your session expired. Please log in again.',
+            {
+              id: 'coupon-session-expired'
+            }
+          );
+
+          navigate('/login');
+          return;
+        }
+
+        throw new Error(
+          data.error ||
+            'Failed to apply coupon'
+        );
+      }
+
+      setCouponCode(data.coupon.code);
+
+      setAppliedCoupon({
+        code: data.coupon.code,
+        discountAmount: Number(
+          data.discountAmount
+        ),
+        finalTotal: Number(data.finalTotal)
+      });
+
+      toast.success(
+        `Coupon ${data.coupon.code} applied successfully`,
+        {
+          id: 'coupon-applied-success'
+        }
+      );
+    } catch (error) {
+      console.error(
+        'Coupon validation error:',
+        error
+      );
+
+      setAppliedCoupon(null);
+
+      toast.error(
+        error.message ||
+          'Could not apply coupon',
+        {
+          id: 'coupon-apply-error'
+        }
+      );
+    } finally {
+      setIsApplyingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setCouponCode('');
+    setAppliedCoupon(null);
+
+    toast.success('Coupon removed', {
+      id: 'coupon-removed'
+    });
   };
 
   const handleSubmit = async (event) => {
@@ -80,6 +224,7 @@ export default function Checkout({
           },
           body: JSON.stringify({
             cart,
+            couponCode: appliedCoupon?.code || null,
             customerDetails: {
               fullName: formData.fullName,
               email: formData.email,
@@ -125,9 +270,7 @@ export default function Checkout({
 
       const completedOrder = {
         orderId: data.orderId,
-        totalAmount: Number(
-          data.totalAmount ?? totalPrice
-        ),
+        totalAmount: finalTotal,
         customerName: formData.fullName,
         email: formData.email,
         phone: formData.phone,
@@ -135,6 +278,8 @@ export default function Checkout({
         address: formData.address,
         paymentMethod:
           formData.paymentMethod,
+        couponCode: appliedCoupon?.code || null,
+        discountAmount,
 
         items: cart.map((item) => ({
           id: item.id,
@@ -369,8 +514,7 @@ export default function Checkout({
                   name="cardNumber"
                   value={formData.cardNumber}
                   onChange={handleChange}
-                  placeholder=
-                    "1234 5678 9012 3456"
+                  placeholder="1234 5678 9012 3456"
                   inputMode="numeric"
                   maxLength="19"
                   required
@@ -446,7 +590,7 @@ export default function Checkout({
           >
             {isSubmitting
               ? 'Processing...'
-              : 'Place Order'}
+              : `Place Order — ₪${finalTotal.toFixed(2)}`}
           </button>
         </form>
 
@@ -490,18 +634,158 @@ export default function Checkout({
 
           <div
             style={{
-              display: 'flex',
-              justifyContent:
-                'space-between',
-              marginTop: '20px',
-              fontSize: '1.2rem'
+              marginTop: '25px',
+              paddingTop: '20px',
+              borderTop:
+                '1px solid var(--border-light)'
             }}
           >
-            <strong>Total</strong>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: 'bold'
+              }}
+            >
+              Coupon Code
+            </label>
 
-            <strong>
-              ₪{totalPrice.toFixed(2)}
-            </strong>
+            <div
+              style={{
+                display: 'flex',
+                gap: '8px'
+              }}
+            >
+              <input
+                type="text"
+                value={couponCode}
+                onChange={handleCouponCodeChange}
+                placeholder="Example: WELCOME10"
+                disabled={isApplyingCoupon}
+                style={{
+                  width: '100%',
+                  minWidth: 0,
+                  padding: '10px',
+                  border:
+                    '1px solid var(--border-light)',
+                  textTransform: 'uppercase',
+                  boxSizing: 'border-box'
+                }}
+              />
+
+              <button
+                type="button"
+                onClick={handleApplyCoupon}
+                disabled={isApplyingCoupon}
+                style={{
+                  padding: '10px 14px',
+                  whiteSpace: 'nowrap',
+                  border:
+                    '1px solid var(--text-main)',
+                  background: '#fff',
+                  cursor: 'pointer',
+                  opacity:
+                    isApplyingCoupon ? 0.6 : 1
+                }}
+              >
+                {isApplyingCoupon
+                  ? 'Checking...'
+                  : 'Apply'}
+              </button>
+            </div>
+
+            {appliedCoupon && (
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent:
+                    'space-between',
+                  alignItems: 'center',
+                  gap: '10px',
+                  marginTop: '12px',
+                  color: '#1e8449',
+                  fontSize: '0.9rem'
+                }}
+              >
+                <span>
+                  {appliedCoupon.code} applied
+                </span>
+
+                <button
+                  type="button"
+                  onClick={handleRemoveCoupon}
+                  style={{
+                    border: 'none',
+                    background: 'none',
+                    color: '#c0392b',
+                    cursor: 'pointer',
+                    textDecoration:
+                      'underline'
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div
+            style={{
+              marginTop: '20px',
+              fontSize: '1.1rem'
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent:
+                  'space-between',
+                marginBottom: '10px'
+              }}
+            >
+              <span>Subtotal</span>
+              <strong>
+                ₪{totalPrice.toFixed(2)}
+              </strong>
+            </div>
+
+            {appliedCoupon && (
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent:
+                    'space-between',
+                  marginBottom: '10px',
+                  color: '#1e8449'
+                }}
+              >
+                <span>
+                  Discount ({appliedCoupon.code})
+                </span>
+                <strong>
+                  -₪
+                  {discountAmount.toFixed(2)}
+                </strong>
+              </div>
+            )}
+
+            <div
+              style={{
+                display: 'flex',
+                justifyContent:
+                  'space-between',
+                paddingTop: '15px',
+                borderTop:
+                  '1px solid var(--border-light)',
+                fontSize: '1.2rem'
+              }}
+            >
+              <strong>Total</strong>
+
+              <strong>
+                ₪{finalTotal.toFixed(2)}
+              </strong>
+            </div>
           </div>
 
           <Link
