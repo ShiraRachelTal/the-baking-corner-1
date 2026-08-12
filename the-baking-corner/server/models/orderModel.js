@@ -182,10 +182,6 @@ const updateOrderStatus = async (
     const previousStatus =
       orders[0].status;
 
-    /*
-      ביטול הזמנה פעילה מחזיר
-      את הכמויות למלאי.
-    */
     if (
       previousStatus !== 'cancelled' &&
       newStatus === 'cancelled'
@@ -201,10 +197,6 @@ const updateOrderStatus = async (
       );
     }
 
-    /*
-      פתיחה מחדש של הזמנה שבוטלה
-      מפחיתה שוב את המלאי.
-    */
     if (
       previousStatus === 'cancelled' &&
       newStatus !== 'cancelled'
@@ -268,7 +260,8 @@ const updateOrderStatus = async (
 const createOrder = async ({
   userId,
   cart,
-  customerDetails
+  customerDetails,
+  couponCode = null
 }) => {
   const connection =
     await pool.getConnection();
@@ -277,12 +270,8 @@ const createOrder = async ({
     await connection.beginTransaction();
 
     const validatedItems = [];
-    let serverTotal = 0;
+    let subtotal = 0;
 
-    /*
-      קריאת המחיר והמלאי האמיתיים
-      מתוך MySQL.
-    */
     for (const item of cart) {
       const [products] =
         await connection.query(
@@ -308,7 +297,7 @@ const createOrder = async ({
 
       if (
         Number(product.stock) <
-        item.quantity
+        Number(item.quantity)
       ) {
         throw createHttpError(
           `Not enough stock for ${product.name}. Available: ${product.stock}`,
@@ -319,7 +308,7 @@ const createOrder = async ({
       const realPrice =
         Number(product.price);
 
-      serverTotal +=
+      subtotal +=
         realPrice * item.quantity;
 
       validatedItems.push({
@@ -329,8 +318,112 @@ const createOrder = async ({
       });
     }
 
-    serverTotal = Number(
-      serverTotal.toFixed(2)
+    subtotal = Number(subtotal.toFixed(2));
+
+    let discountAmount = 0;
+    let appliedCouponCode = null;
+
+    if (
+      typeof couponCode === 'string' &&
+      couponCode.trim()
+    ) {
+      const normalizedCouponCode =
+        couponCode.trim().toUpperCase();
+
+      const [coupons] =
+        await connection.query(
+          `SELECT
+            id,
+            code,
+            discount_type,
+            discount_value,
+            minimum_order_amount,
+            expires_at,
+            max_uses,
+            used_count,
+            is_active
+           FROM coupons
+           WHERE UPPER(code) = UPPER(?)
+           FOR UPDATE`,
+          [normalizedCouponCode]
+        );
+
+      if (coupons.length === 0) {
+        throw createHttpError(
+          'Coupon was not found',
+          404
+        );
+      }
+
+      const coupon = coupons[0];
+
+      if (!coupon.is_active) {
+        throw createHttpError(
+          'This coupon is inactive',
+          400
+        );
+      }
+
+      if (
+        coupon.expires_at &&
+        new Date(coupon.expires_at) < new Date()
+      ) {
+        throw createHttpError(
+          'This coupon has expired',
+          400
+        );
+      }
+
+      if (
+        coupon.max_uses !== null &&
+        Number(coupon.used_count) >=
+          Number(coupon.max_uses)
+      ) {
+        throw createHttpError(
+          'This coupon has reached its usage limit',
+          400
+        );
+      }
+
+      if (
+        subtotal <
+        Number(coupon.minimum_order_amount)
+      ) {
+        throw createHttpError(
+          `This coupon requires an order of at least ₪${Number(
+            coupon.minimum_order_amount
+          ).toFixed(2)}`,
+          400
+        );
+      }
+
+      const rawDiscount =
+        coupon.discount_type === 'percentage'
+          ? (
+              subtotal *
+              Number(coupon.discount_value)
+            ) / 100
+          : Number(coupon.discount_value);
+
+      discountAmount = Number(
+        Math.min(
+          rawDiscount,
+          subtotal
+        ).toFixed(2)
+      );
+
+      appliedCouponCode = coupon.code;
+
+      await connection.query(
+        `UPDATE coupons
+         SET used_count = used_count + 1
+         WHERE id = ?`,
+        [coupon.id]
+      );
+    }
+
+    const finalTotal = Number(
+      (subtotal - discountAmount).toFixed(2)
     );
 
     const [orderResult] =
@@ -350,7 +443,7 @@ const createOrder = async ({
         )`,
         [
           userId,
-          serverTotal,
+          finalTotal,
           'pending',
           customerDetails.fullName.trim(),
           customerDetails.email.trim(),
@@ -395,7 +488,10 @@ const createOrder = async ({
 
     return {
       orderId,
-      totalPrice: serverTotal
+      subtotal,
+      discountAmount,
+      couponCode: appliedCouponCode,
+      totalPrice: finalTotal
     };
   } catch (error) {
     await connection.rollback();

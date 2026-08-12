@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import socket from '../services/socket';
 import ContactMessages from '../components/ContactMessages';
+import CouponsPanel from '../components/CouponsPanel';
 const emptyProductForm = {
   name: '',
   description: '',
@@ -757,6 +758,17 @@ export default function AdminPanel({
 >
   Contact Messages
 </button>
+<button
+  type="button"
+  onClick={() =>
+    setActiveTab('coupons')
+  }
+  style={tabStyle(
+    activeTab === 'coupons'
+  )}
+>
+  Coupons
+</button>
       </div>
 
       {activeTab === 'orders' && (
@@ -1472,6 +1484,9 @@ export default function AdminPanel({
       )}
       {activeTab === 'messages' && (
   <ContactMessages />
+)}
+{activeTab === 'coupons' && (
+  <CouponsPanel />
 )}
     </div>
   );

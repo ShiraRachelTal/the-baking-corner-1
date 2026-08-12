@@ -78,11 +78,10 @@ const getMyOrderItems = async (
 ) => {
   try {
     const items =
-      await orderModel
-        .getOrderItemsForUser(
-          req.params.id,
-          req.user.id
-        );
+      await orderModel.getOrderItemsForUser(
+        req.params.id,
+        req.user.id
+      );
 
     return res.json(items);
   } catch (error) {
@@ -244,11 +243,6 @@ const updateOrderStatus = async (
       status
     });
 
-    /*
-      A status change may cancel an order
-      or restore inventory, so product
-      clients are notified as well.
-    */
     emitInventoryChanged(
       req,
       'order-status-updated',
@@ -279,7 +273,8 @@ const createOrder = async (
 ) => {
   const {
     cart,
-    customerDetails
+    customerDetails,
+    couponCode
   } = req.body;
 
   if (
@@ -362,12 +357,19 @@ const createOrder = async (
       })
     );
 
+  const normalizedCouponCode =
+    typeof couponCode === 'string'
+      ? couponCode.trim().toUpperCase()
+      : null;
+
   try {
     const result =
       await orderModel.createOrder({
         userId: req.user.id,
         cart: normalizedCart,
-        customerDetails
+        customerDetails,
+        couponCode:
+          normalizedCouponCode || null
       });
 
     emitOrdersChanged(req, {
@@ -386,14 +388,11 @@ const createOrder = async (
     return res.status(201).json({
       message:
         'Order placed successfully',
-
       orderId: result.orderId,
-
-      /*
-        Both names are returned for
-        compatibility with the checkout
-        and confirmation pages.
-      */
+      subtotal: result.subtotal,
+      discountAmount:
+        result.discountAmount,
+      couponCode: result.couponCode,
       totalPrice: result.totalPrice,
       totalAmount: result.totalPrice
     });
