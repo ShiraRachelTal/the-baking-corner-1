@@ -7,6 +7,10 @@ export default function OrderSuccess() {
   const location = useLocation();
   const order = location.state?.order;
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   if (!order) {
     return (
       <div
@@ -57,10 +61,10 @@ export default function OrderSuccess() {
       }}
     >
       <section
+        id="print-receipt"
         style={{
           backgroundColor: '#fff',
-          border:
-            '1px solid var(--border-light)',
+          border: '1px solid var(--border-light)',
           padding: '30px'
         }}
       >
@@ -164,8 +168,7 @@ export default function OrderSuccess() {
               }}
             >
               <span>
-                {item.name} ×{' '}
-                {item.quantity}
+                {item.name} × {item.quantity}
               </span>
 
               <strong>
@@ -180,6 +183,7 @@ export default function OrderSuccess() {
         </div>
 
         <div
+          className="no-print"
           style={{
             display: 'flex',
             flexWrap: 'wrap',
@@ -188,6 +192,17 @@ export default function OrderSuccess() {
             marginTop: '30px'
           }}
         >
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={handlePrint}
+            style={{
+              padding: '11px 20px'
+            }}
+          >
+            Print Receipt
+          </button>
+
           <Link
             to="/my-orders"
             className="btn-primary"

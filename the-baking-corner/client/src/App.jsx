@@ -10,13 +10,17 @@ import {
 import toast, {
   Toaster
 } from 'react-hot-toast';
+
 import socket from './services/socket';
+
 // Components
 import Navbar from './components/Navbar';
 import ProductGrid from './components/ProductGrid';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
 import FloatingAssistantButton from './components/FloatingAssistantButton';
+import AccessibilityMenu from './components/AccessibilityMenu';
+
 // Pages
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
@@ -26,43 +30,41 @@ import Register from './pages/Register';
 import MyOrders from './pages/MyOrders';
 import OrderSuccess from './pages/OrderSuccess';
 import AIAssistant from './pages/AIAssistant';
+import Contact from './pages/Contact';
+
 function App() {
   const location = useLocation();
 
-  const [items, setItems] =
-    useState([]);
+  const [items, setItems] = useState([]);
 
-  const [cart, setCart] =
-    useState(() => {
-      const savedCart =
-        localStorage.getItem(
-          'baking_corner_cart'
-        );
+  const [cart, setCart] = useState(() => {
+    const savedCart = localStorage.getItem(
+      'baking_corner_cart'
+    );
 
-      if (!savedCart) {
-        return [];
-      }
+    if (!savedCart) {
+      return [];
+    }
 
-      try {
-        return JSON.parse(savedCart);
-      } catch (error) {
-        console.error(
-          'Invalid saved cart:',
-          error
-        );
+    try {
+      return JSON.parse(savedCart);
+    } catch (error) {
+      console.error(
+        'Invalid saved cart:',
+        error
+      );
 
-        return [];
-      }
-    });
+      return [];
+    }
+  });
 
   const [
     currentUser,
     setCurrentUser
   ] = useState(() => {
-    const savedUser =
-      localStorage.getItem(
-        'baking_corner_user'
-      );
+    const savedUser = localStorage.getItem(
+      'baking_corner_user'
+    );
 
     if (!savedUser) {
       return null;
@@ -100,8 +102,7 @@ function App() {
         );
       }
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
       setItems(data);
     } catch (error) {
@@ -113,46 +114,45 @@ function App() {
       toast.error(
         'Failed to load products',
         {
-          id:
-            'load-products-error'
+          id: 'load-products-error'
         }
       );
     }
   };
 
   useEffect(() => {
-  const handleSocketConnect = () => {
-    console.log(
-      'Connected to real-time server'
-    );
-  };
+    const handleSocketConnect = () => {
+      console.log(
+        'Connected to real-time server'
+      );
+    };
 
-  const handleProductsChanged = () => {
-    loadProducts();
-  };
+    const handleProductsChanged = () => {
+      loadProducts();
+    };
 
-  socket.on(
-    'connect',
-    handleSocketConnect
-  );
-
-  socket.on(
-    'products:changed',
-    handleProductsChanged
-  );
-
-  return () => {
-    socket.off(
+    socket.on(
       'connect',
       handleSocketConnect
     );
 
-    socket.off(
+    socket.on(
       'products:changed',
       handleProductsChanged
     );
-  };
-}, []);
+
+    return () => {
+      socket.off(
+        'connect',
+        handleSocketConnect
+      );
+
+      socket.off(
+        'products:changed',
+        handleProductsChanged
+      );
+    };
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(
@@ -177,9 +177,7 @@ function App() {
     }
   }, [location.pathname]);
 
-  const addToCart = async (
-    product
-  ) => {
+  const addToCart = async (product) => {
     try {
       const response = await fetch(
         'http://localhost:5000/api/products'
@@ -236,16 +234,12 @@ function App() {
           previousCart.find(
             (item) =>
               Number(item.id) ===
-              Number(
-                latestProduct.id
-              )
+              Number(latestProduct.id)
           );
 
         const currentQuantity =
           existingItem
-            ? Number(
-                existingItem.quantity
-              )
+            ? Number(existingItem.quantity)
             : 0;
 
         if (
@@ -285,16 +279,12 @@ function App() {
           return previousCart.map(
             (item) =>
               Number(item.id) ===
-              Number(
-                latestProduct.id
-              )
+              Number(latestProduct.id)
                 ? {
                     ...item,
-                    stock:
-                      availableStock,
+                    stock: availableStock,
                     quantity:
-                      currentQuantity +
-                      1
+                      currentQuantity + 1
                   }
                 : item
           );
@@ -318,175 +308,156 @@ function App() {
       toast.error(
         'Could not check the current inventory',
         {
-          id:
-            'inventory-check-error'
+          id: 'inventory-check-error'
         }
       );
     }
   };
+
   const addRecipeProductsToCart = async (
-  selectedProducts
-) => {
-  try {
-    const response = await fetch(
-      'http://localhost:5000/api/products'
-    );
-
-    if (!response.ok) {
-      throw new Error(
-        'Failed to check inventory'
+    selectedProducts
+  ) => {
+    try {
+      const response = await fetch(
+        'http://localhost:5000/api/products'
       );
-    }
 
-    const latestProducts =
-      await response.json();
+      if (!response.ok) {
+        throw new Error(
+          'Failed to check inventory'
+        );
+      }
 
-    setItems(latestProducts);
+      const latestProducts =
+        await response.json();
 
-    setCart((previousCart) => {
-      const updatedCart =
-        previousCart.map((item) => ({
-          ...item
-        }));
+      setItems(latestProducts);
 
-      let addedUnits = 0;
+      setCart((previousCart) => {
+        const updatedCart =
+          previousCart.map((item) => ({
+            ...item
+          }));
 
-      selectedProducts.forEach(
-        (selection) => {
-          const latestProduct =
-            latestProducts.find(
-              (product) =>
-                Number(product.id) ===
-                Number(selection.id)
-            );
+        let addedUnits = 0;
 
-          if (!latestProduct) {
-            return;
-          }
+        selectedProducts.forEach(
+          (selection) => {
+            const latestProduct =
+              latestProducts.find(
+                (product) =>
+                  Number(product.id) ===
+                  Number(selection.id)
+              );
 
-          const availableStock =
-            Number(latestProduct.stock);
+            if (!latestProduct) {
+              return;
+            }
 
-          const requestedQuantity =
-            Number(selection.quantity);
+            const availableStock =
+              Number(latestProduct.stock);
 
-          if (
-            availableStock <= 0 ||
-            !Number.isInteger(
-              requestedQuantity
-            ) ||
-            requestedQuantity <= 0
-          ) {
-            return;
-          }
+            const requestedQuantity =
+              Number(selection.quantity);
 
-          const existingIndex =
-            updatedCart.findIndex(
-              (item) =>
-                Number(item.id) ===
-                Number(latestProduct.id)
-            );
+            if (
+              availableStock <= 0 ||
+              !Number.isInteger(
+                requestedQuantity
+              ) ||
+              requestedQuantity <= 0
+            ) {
+              return;
+            }
 
-          const currentQuantity =
-            existingIndex >= 0
-              ? Number(
-                  updatedCart[
-                    existingIndex
-                  ].quantity
-                )
-              : 0;
+            const existingIndex =
+              updatedCart.findIndex(
+                (item) =>
+                  Number(item.id) ===
+                  Number(latestProduct.id)
+              );
 
-          const remainingStock =
-            Math.max(
+            const currentQuantity =
+              existingIndex >= 0
+                ? Number(
+                    updatedCart[
+                      existingIndex
+                    ].quantity
+                  )
+                : 0;
+
+            const remainingStock = Math.max(
               0,
-              availableStock -
-                currentQuantity
+              availableStock - currentQuantity
             );
 
-          const quantityToAdd =
-            Math.min(
+            const quantityToAdd = Math.min(
               requestedQuantity,
               remainingStock
             );
 
-          if (quantityToAdd <= 0) {
-            return;
-          }
+            if (quantityToAdd <= 0) {
+              return;
+            }
 
-          if (existingIndex >= 0) {
-            updatedCart[
-              existingIndex
-            ] = {
-              ...updatedCart[
-                existingIndex
-              ],
+            if (existingIndex >= 0) {
+              updatedCart[existingIndex] = {
+                ...updatedCart[existingIndex],
+                ...latestProduct,
+                stock: availableStock,
+                quantity:
+                  currentQuantity + quantityToAdd
+              };
+            } else {
+              updatedCart.push({
+                ...latestProduct,
+                stock: availableStock,
+                quantity: quantityToAdd
+              });
+            }
 
-              ...latestProduct,
-
-              stock:
-                availableStock,
-
-              quantity:
-                currentQuantity +
-                quantityToAdd
-            };
-          } else {
-            updatedCart.push({
-              ...latestProduct,
-              stock:
-                availableStock,
-              quantity:
-                quantityToAdd
-            });
-          }
-
-          addedUnits += quantityToAdd;
-        }
-      );
-
-      if (addedUnits === 0) {
-        toast.error(
-          'The recipe products are already in your cart or unavailable',
-          {
-            id:
-              'recipe-products-unavailable'
+            addedUnits += quantityToAdd;
           }
         );
 
-        return previousCart;
-      }
+        if (addedUnits === 0) {
+          toast.error(
+            'The recipe products are already in your cart or unavailable',
+            {
+              id: 'recipe-products-unavailable'
+            }
+          );
 
-      toast.success(
-        `${addedUnits} recipe items added to your cart`,
+          return previousCart;
+        }
+
+        toast.success(
+          `${addedUnits} recipe items added to your cart`,
+          {
+            id: 'recipe-products-added'
+          }
+        );
+
+        return updatedCart;
+      });
+    } catch (error) {
+      console.error(
+        'Adding recipe products failed:',
+        error
+      );
+
+      toast.error(
+        'Could not check the current inventory',
         {
-          id:
-            'recipe-products-added'
+          id: 'recipe-inventory-error'
         }
       );
 
-      return updatedCart;
-    });
-  } catch (error) {
-    console.error(
-      'Adding recipe products failed:',
-      error
-    );
+      throw error;
+    }
+  };
 
-    toast.error(
-      'Could not check the current inventory',
-      {
-        id:
-          'recipe-inventory-error'
-      }
-    );
-
-    throw error;
-  }
-};
-
-  const decreaseQuantity = (
-    product
-  ) => {
+  const decreaseQuantity = (product) => {
     setCart((previousCart) => {
       const existingItem =
         previousCart.find(
@@ -500,9 +471,7 @@ function App() {
       }
 
       if (
-        Number(
-          existingItem.quantity
-        ) === 1
+        Number(existingItem.quantity) === 1
       ) {
         return previousCart.filter(
           (item) =>
@@ -518,18 +487,14 @@ function App() {
             ? {
                 ...item,
                 quantity:
-                  Number(
-                    item.quantity
-                  ) - 1
+                  Number(item.quantity) - 1
               }
             : item
       );
     });
   };
 
-  const removeFromCart = (
-    productId
-  ) => {
+  const removeFromCart = (productId) => {
     setCart((previousCart) =>
       previousCart.filter(
         (item) =>
@@ -572,13 +537,11 @@ function App() {
     );
   };
 
-  const totalItemsInCart =
-    cart.reduce(
-      (sum, item) =>
-        sum +
-        Number(item.quantity),
-      0
-    );
+  const totalItemsInCart = cart.reduce(
+    (sum, item) =>
+      sum + Number(item.quantity),
+    0
+  );
 
   return (
     <div
@@ -593,16 +556,17 @@ function App() {
     >
       <Toaster />
 
+      <AccessibilityMenu />
+
       <Navbar
         currentUser={currentUser}
-        totalItemsInCart={
-          totalItemsInCart
-        }
+        totalItemsInCart={totalItemsInCart}
         onLogout={handleLogout}
       />
+
       {currentUser && (
-  <FloatingAssistantButton />
-)}
+        <FloatingAssistantButton />
+      )}
 
       <Routes>
         <Route
@@ -610,9 +574,7 @@ function App() {
           element={
             <ProductGrid
               products={items}
-              onAddToCart={
-                addToCart
-              }
+              onAddToCart={addToCart}
               cart={cart}
             />
           }
@@ -627,9 +589,7 @@ function App() {
                   item.category ===
                   'ingredients'
               )}
-              onAddToCart={
-                addToCart
-              }
+              onAddToCart={addToCart}
               cart={cart}
             />
           }
@@ -644,56 +604,50 @@ function App() {
                   item.category ===
                   'equipment'
               )}
-              onAddToCart={
-                addToCart
-              }
+              onAddToCart={addToCart}
               cart={cart}
             />
           }
         />
+        <Route
+  path="/contact"
+  element={<Contact />}
+/>
 
         <Route
           path="/login"
           element={
             currentUser ? (
-              <Navigate
-                to="/"
-                replace
+              <Navigate to="/" replace />
+            ) : (
+              <Login onLogin={handleLogin} />
+            )
+          }
+        />
+
+        <Route
+          path="/ai-assistant"
+          element={
+            currentUser ? (
+              <AIAssistant
+                onAddProductsToCart={
+                  addRecipeProductsToCart
+                }
               />
             ) : (
-              <Login
-                onLogin={
-                  handleLogin
-                }
+              <Navigate
+                to="/login"
+                replace
               />
             )
           }
         />
-<Route
-  path="/ai-assistant"
-  element={
-    currentUser ? (
-      <AIAssistant
-        onAddProductsToCart={
-          addRecipeProductsToCart
-        }
-      />
-    ) : (
-      <Navigate
-        to="/login"
-        replace
-      />
-    )
-  }
-/>
+
         <Route
           path="/register"
           element={
             currentUser ? (
-              <Navigate
-                to="/"
-                replace
-              />
+              <Navigate to="/" replace />
             ) : (
               <Register />
             )
@@ -704,14 +658,10 @@ function App() {
           path="/my-orders"
           element={
             <ProtectedRoute
-              currentUser={
-                currentUser
-              }
+              currentUser={currentUser}
             >
               <MyOrders
-                onProductsChanged={
-                  loadProducts
-                }
+                onProductsChanged={loadProducts}
               />
             </ProtectedRoute>
           }
@@ -721,14 +671,10 @@ function App() {
           path="/admin"
           element={
             <AdminRoute
-              currentUser={
-                currentUser
-              }
+              currentUser={currentUser}
             >
               <AdminPanel
-                onProductsChanged={
-                  loadProducts
-                }
+                onProductsChanged={loadProducts}
               />
             </AdminRoute>
           }
@@ -740,12 +686,8 @@ function App() {
             <Cart
               cart={cart}
               onIncrease={addToCart}
-              onDecrease={
-                decreaseQuantity
-              }
-              onRemove={
-                removeFromCart
-              }
+              onDecrease={decreaseQuantity}
+              onRemove={removeFromCart}
             />
           }
         />
@@ -754,37 +696,32 @@ function App() {
           path="/checkout"
           element={
             <ProtectedRoute
-              currentUser={
-                currentUser
-              }
+              currentUser={currentUser}
             >
               <Checkout
                 cart={cart}
-                currentUser={
-                  currentUser
-                }
-                onOrderComplete={
-                  clearCart
-                }
+                currentUser={currentUser}
+                onOrderComplete={clearCart}
               />
             </ProtectedRoute>
           }
         />
-<Route
-  path="/order-success"
-  element={
-    <ProtectedRoute currentUser={currentUser}>
-      <OrderSuccess />
-    </ProtectedRoute>
-  }
-/>
+
+        <Route
+          path="/order-success"
+          element={
+            <ProtectedRoute
+              currentUser={currentUser}
+            >
+              <OrderSuccess />
+            </ProtectedRoute>
+          }
+        />
+
         <Route
           path="*"
           element={
-            <Navigate
-              to="/"
-              replace
-            />
+            <Navigate to="/" replace />
           }
         />
       </Routes>
