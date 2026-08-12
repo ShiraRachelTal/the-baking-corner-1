@@ -1,6 +1,6 @@
 # Node & Dependencies
 node_modules/
-package-lock.json  # (אופציונלי - תלוי בצורת העבודה שלכן)
+package-lock.json  
 
 # Environment variables
 .env
